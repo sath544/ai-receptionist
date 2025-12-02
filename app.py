@@ -3,17 +3,19 @@ import json
 import os
 from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 
-# Paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FAQ_PATH = os.path.join(BASE_DIR, "data", "faqs.json")
-APPOINTMENT_PATH = os.path.join(BASE_DIR, "data", "appointments.csv")
+DATA_DIR = os.path.join(BASE_DIR, "data")
 
-# Make sure data folder & appointments file exist
-if not os.path.exists(os.path.join(BASE_DIR, "data")):
-    os.makedirs(os.path.join(BASE_DIR, "data"))
+# Ensure data directory exists
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
+FAQ_PATH = os.path.join(DATA_DIR, "faqs.json")
+APPOINTMENT_PATH = os.path.join(DATA_DIR, "appointments.csv")
+
+# Ensure appointments file exists
 if not os.path.exists(APPOINTMENT_PATH):
     with open(APPOINTMENT_PATH, "w", encoding="utf-8") as f:
         f.write("timestamp,name,date,time,purpose,raw_message\n")
@@ -32,63 +34,53 @@ FAQs = load_faqs()
 def match_faq(user_message: str):
     msg = user_message.lower()
     for faq in FAQs:
-        keywords = faq.get("keywords", [])
-        if any(kw.lower() in msg for kw in keywords):
+        if any(kw.lower() in msg for kw in faq.get("keywords", [])):
             return faq.get("answer")
     return None
 
 
-def is_greeting(message: str) -> bool:
-    greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
+def is_greeting(message: str):
+    words = ["hi", "hello", "hey", "good morning", "good afternoon"]
     message = message.lower()
-    return any(g in message for g in greetings)
+    return any(w in message for w in words)
 
 
-def is_thanks(message: str) -> bool:
-    words = ["thank you", "thanks", "thx"]
+def is_thanks(message: str):
+    words = ["thanks", "thank you", "thx"]
     message = message.lower()
     return any(w in message for w in words)
 
 
 def parse_appointment(message: str):
-    """
-    Example:
-    book appointment: 2025-12-03 16:00, Tarun, demo meeting
-    """
     if "book appointment" not in message.lower():
         return None
 
     try:
         parts = message.split(":", 1)
-        if len(parts) < 2:
-            return None
-
         details = parts[1].strip()
         segments = [s.strip() for s in details.split(",")]
 
         if len(segments) < 3:
             return None
 
-        date_time_str = segments[0]          # "2025-12-03 16:00"
-        name = segments[1]                   # "Tarun"
-        purpose = ", ".join(segments[2:])    # "demo meeting"
+        dt_str = segments[0]      # "2025-12-03 16:00"
+        name = segments[1]
+        purpose = ", ".join(segments[2:])
 
-        dt = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
-        date_str = dt.date().isoformat()
-        time_str = dt.strftime("%H:%M")
+        dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
 
         return {
             "name": name,
-            "date": date_str,
-            "time": time_str,
-            "purpose": purpose,
-            "date_time_raw": date_time_str,
+            "date": dt.date().isoformat(),
+            "time": dt.strftime("%H:%M"),
+            "purpose": purpose
         }
-    except Exception:
+
+    except:
         return None
 
 
-def save_appointment(appt: dict, raw_message: str):
+def save_appointment(appt, raw_message):
     with open(APPOINTMENT_PATH, "a", encoding="utf-8") as f:
         f.write(
             f"{datetime.now().isoformat()},{appt['name']},{appt['date']},"
@@ -103,54 +95,41 @@ def index():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
-    user_message = data.get("message", "").strip()
+    user_message = request.json.get("message", "").strip()
 
     if not user_message:
-        return jsonify({"reply": "Please type something so I can help you 😊"})
+        return jsonify({"reply": "Please type something 😊"})
 
     if is_greeting(user_message):
-        return jsonify({
-            "reply": (
-                "Hello! 👋 I'm your virtual receptionist.\n\n"
-                "I can help you with:\n"
-                "• Basic information (timings, location, contact)\n"
-                "• FAQs\n"
-                "• Booking appointments\n\n"
-                "You can ask me anything!"
-            )
+        return jsonify({"reply":
+            "Hello! 👋 I'm your AI Receptionist.\n"
+            "Ask me anything or book an appointment!"
         })
 
     if is_thanks(user_message):
-        return jsonify({"reply": "You're welcome! 😊 Anything else I can help you with?"})
+        return jsonify({"reply": "You're welcome! 😊"})
 
     appt = parse_appointment(user_message)
     if appt:
         save_appointment(appt, user_message)
-        return jsonify({
-            "reply": (
-                f"✅ Appointment booked!\n\n"
-                f"Name: {appt['name']}\n"
-                f"Date: {appt['date']}\n"
-                f"Time: {appt['time']}\n"
-                f"Purpose: {appt['purpose']}\n\n"
-                "We’ll get back to you with confirmation soon."
-            )
+        return jsonify({"reply":
+            f"✅ Appointment booked!\n\n"
+            f"Name: {appt['name']}\n"
+            f"Date: {appt['date']}\n"
+            f"Time: {appt['time']}\n"
+            f"Purpose: {appt['purpose']}"
         })
 
-    faq_answer = match_faq(user_message)
-    if faq_answer:
-        return jsonify({"reply": faq_answer})
+    faq = match_faq(user_message)
+    if faq:
+        return jsonify({"reply": faq})
 
-    default_reply = (
-        "I'm not sure I understood that fully 🤔\n\n"
-        "You can try:\n"
-        "• Ask about: timings, location, courses, fees, contact\n"
-        "• Or book appointment like:\n"
-        "  book appointment: 2025-12-03 16:00, Your Name, purpose"
-    )
-    return jsonify({"reply": default_reply})
+    return jsonify({"reply":
+        "Sorry, I didn't understand that 🤔\n\n"
+        "Try asking about timings, location, contact, or:\n"
+        "`book appointment: 2025-12-03 16:00, Your Name, purpose`"
+    })
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
