@@ -23,8 +23,16 @@ if not os.path.exists(APPOINTMENT_PATH):
 
 def load_faqs():
     if os.path.exists(FAQ_PATH):
-        with open(FAQ_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(FAQ_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            # corrupted or empty JSON — use empty list but log a warning
+            print("Warning: data/faqs.json is not valid JSON. Using empty FAQs.")
+            return []
+        except Exception as e:
+            print(f"Warning: failed to load faqs.json: {e}")
+            return []
     return []
 
 
@@ -133,3 +141,4 @@ def chat():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
