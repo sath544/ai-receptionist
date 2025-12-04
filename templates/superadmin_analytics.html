@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Analytics</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="brand">Super Admin</div>
+      <nav>
+        <a href="/superadmin" >Clients</a>
+        <a href="/superadmin/analytics" class="active">Analytics</a>
+      </nav>
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-top">
+        <h3>Analytics</h3>
+      </header>
+
+      <section class="admin-content">
+        <div class="grid-4">
+          <div class="stat card"><h2>{{ total_clients }}</h2><p>Clients</p></div>
+          <div class="stat card"><h2>{{ total_appointments }}</h2><p>Appointments</p></div>
+          <div class="stat card"><h2>{{ today_count }}</h2><p>Today</p></div>
+          <div class="stat card"><h2>{{ month_count }}</h2><p>This month</p></div>
+        </div>
+
+        <div class="card">
+          <h4>Appointments Trend</h4>
+          <canvas id="trendChart"></canvas>
+        </div>
+
+        <div class="card">
+          <h4>Top Clients</h4>
+          <ul>
+            {% for c, count in top_clients %}
+              <li>{{ c }} — {{ count }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script>
+const labels = {{ labels|tojson }};
+const values = {{ values|tojson }};
+new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: { labels: labels, datasets: [{ label: 'Appointments', data: values, borderColor: '#2563eb', tension: 0.2 }]},
+});
+</script>
+</body>
+</html>
