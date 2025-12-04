@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ "Create Client" if mode=="create" else "Edit Client" }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="simple-center">
+  <div class="card">
+    <h3>{{ "Create Client" if mode=="create" else "Edit Client" }}</h3>
+    <form method="post">
+      <input name="slug" placeholder="Unique slug (example: salon123)" value="{{ client.slug if client else '' }}" required />
+      <input name="name" placeholder="Business name" value="{{ client.name if client else '' }}" required />
+      <input name="logo" placeholder="Logo URL" value="{{ client.logo if client else '' }}" />
+      <input name="color" placeholder="Color hex (#2563eb)" value="{{ client.color if client else '#2563eb' }}" required />
+      {% if mode=="create" %}
+      <hr/>
+      <h4>Admin account</h4>
+      <input name="username" placeholder="Admin email" required />
+      <input name="password" placeholder="Admin password" required />
+      {% endif %}
+      <button class="btn-primary" type="submit">{{ "Update" if mode=="edit" else "Create" }}</button>
+    </form>
+  </div>
+</body>
+</html>
