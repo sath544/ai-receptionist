@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ session.client_name }} — Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="brand">Admin — {{ session.client_name }}</div>
+      <nav>
+        <a href="/admin" class="active">Appointments</a>
+        <a href="/admin/logout">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-top">
+        <h3>Appointments</h3>
+        <div>
+          <a class="btn" href="/admin/export">Export CSV</a>
+        </div>
+      </header>
+
+      <section class="admin-content">
+        <form method="get" class="search-form">
+          <input name="q" placeholder="Search name or purpose" value="{{ q }}">
+          <button class="btn">Search</button>
+        </form>
+
+        <table class="table">
+          <thead>
+            <tr><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Purpose</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for a in appts %}
+            <tr>
+              <td>{{ a.id }}</td>
+              <td>{{ a.name }}</td>
+              <td>{{ a.date }}</td>
+              <td>{{ a.time }}</td>
+              <td>{{ a.purpose }}</td>
+              <td>
+                <form method="post" action="/admin/delete/{{ a.id }}" onsubmit="return confirm('Delete appointment?')">
+                  <button class="btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
