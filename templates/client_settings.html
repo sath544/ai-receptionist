@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Client Settings — {{ session.client_name }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="simple-center">
+  <div class="card" style="width:520px">
+    <h3>Settings — {{ session.client_name }}</h3>
+    {% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+    <form method="post">
+      <label>Business name</label>
+      <input name="name" value="{{ client.name }}" required />
+      <label>Logo URL</label>
+      <input name="logo" value="{{ client.logo or '' }}" />
+      <label>Primary color</label>
+      <input name="color" value="{{ client.color or '#2563eb' }}" />
+      <hr/>
+      <h4>Admin password</h4>
+      <input name="password" type="password" placeholder="New admin password" />
+      <button class="btn-primary" type="submit">Save</button>
+    </form>
+  </div>
+</body>
+</html>
