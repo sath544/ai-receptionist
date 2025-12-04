@@ -1,34 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>AI Receptionist</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>AI Receptionist — Your Virtual Front Desk</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f3f4f6; padding: 40px; }
+        .chat-box { width: 450px; background: white; padding: 20px; border-radius: 10px; margin: auto; box-shadow: 0 0 15px rgba(0,0,0,.1); }
+        input, button { padding: 10px; width: 100%; margin-top: 10px; }
+        button { background: #2563eb; color: white; border: none; cursor:pointer; }
+        #reply { margin-top: 20px; white-space: pre-line; }
+    </style>
 </head>
 <body>
-<div class="app-container">
-    <div class="header">
-        <h1>AI Receptionist</h1>
-        <p>Your virtual front-desk assistant 💁‍♀️</p>
-    </div>
 
-    <div class="chat-window" id="chatWindow">
-        <!-- Messages will appear here -->
-    </div>
+<div class="chat-box">
+    <h2>AI Receptionist 🤖</h2>
+    <p>Ask something or book an appointment!</p>
 
-    <form id="chatForm" class="input-area">
-        <input
-            type="text"
-            id="userInput"
-            placeholder="Type your message here..."
-            autocomplete="off"
-            required
-        />
-        <button type="submit">Send</button>
-    </form>
+    <input id="msg" placeholder="Type here...">
+    <button onclick="sendMsg()">Send</button>
+
+    <div id="reply"></div>
 </div>
 
-<script src="/static/script.js"></script>
+<script>
+async function sendMsg() {
+    let message = document.getElementById("msg").value;
+    let r = await fetch("/chat", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({message})
+    });
+    let data = await r.json();
+    document.getElementById("reply").innerText = data.reply;
+}
+</script>
+
 </body>
 </html>
-
