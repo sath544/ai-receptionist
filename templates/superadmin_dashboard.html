@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Super Admin — Clients</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="brand">Super Admin</div>
+      <nav>
+        <a href="/superadmin" class="active">Clients</a>
+        <a href="/superadmin/analytics">Analytics</a>
+        <a href="/superadmin/logout">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-top">
+        <h3>Clients</h3>
+        <div>
+          <a class="btn" href="/superadmin/client/new">+ Add Client</a>
+        </div>
+      </header>
+
+      <section class="admin-content">
+        <table class="table">
+          <thead><tr><th>ID</th><th>Slug</th><th>Name</th><th>Color</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for c in clients %}
+            <tr>
+              <td>{{ c.id }}</td>
+              <td>{{ c.slug }}</td>
+              <td>{{ c.name }}</td>
+              <td><span class="pill" style="background:{{ c.color }}">{{ c.color }}</span></td>
+              <td>
+                <a class="btn" href="/superadmin/client/{{ c.id }}/edit">Edit</a>
+                <form style="display:inline" method="post" action="/superadmin/client/{{ c.id }}/delete" onsubmit="return confirm('Delete client?')">
+                  <button class="btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
