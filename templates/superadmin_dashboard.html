@@ -1,9 +1,9 @@
+<!-- templates/superadmin_dashboard.html -->
 <!doctype html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8" />
-  <title>Super Admin — Clients</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Superadmin Dashboard</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -11,33 +11,79 @@
     <aside class="admin-sidebar">
       <div class="brand">Super Admin</div>
       <nav>
-        <a href="/superadmin" class="active">Clients</a>
-        <a href="/superadmin/analytics">Analytics</a>
-        <a href="/superadmin/logout">Logout</a>
+        <a href="{{ url_for('superadmin_dashboard') }}" class="active">Clients</a>
+        <a href="{{ url_for('superadmin_logout') }}">Logout</a>
       </nav>
     </aside>
 
     <main class="admin-main">
       <header class="admin-top">
         <h3>Clients</h3>
-        <div>
-          <a class="btn" href="/superadmin/client/new">+ Add Client</a>
-        </div>
+        <div><a class="btn" href="{{ url_for('superadmin_client_new') }}">New Client</a></div>
       </header>
 
       <section class="admin-content">
         <table class="table">
-          <thead><tr><th>ID</th><th>Slug</th><th>Name</th><th>Color</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Slug</th><th>Name</th><th>Created</th><th>Action</th></tr></thead>
           <tbody>
             {% for c in clients %}
             <tr>
               <td>{{ c.id }}</td>
               <td>{{ c.slug }}</td>
               <td>{{ c.name }}</td>
-              <td><span class="pill" style="background:{{ c.color }}">{{ c.color }}</span></td>
+              <td>{{ c.created_at.strftime('%Y-%m-%d') }}</td>
               <td>
-                <a class="btn" href="/superadmin/client/{{ c.id }}/edit">Edit</a>
-                <form style="display:inline" method="post" action="/superadmin/client/{{ c.id }}/delete" onsubmit="return confirm('Delete client?')">
+                <a class="btn" href="{{ url_for('superadmin_client_edit', cid=c.id) }}">Edit</a>
+                <form method="post" action="{{ url_for('superadmin_client_delete', cid=c.id) }}" style="display:inline;">
+                  <button class="btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
+<!-- templates/superadmin_dashboard.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Superadmin Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="brand">Super Admin</div>
+      <nav>
+        <a href="{{ url_for('superadmin_dashboard') }}" class="active">Clients</a>
+        <a href="{{ url_for('superadmin_logout') }}">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="admin-main">
+      <header class="admin-top">
+        <h3>Clients</h3>
+        <div><a class="btn" href="{{ url_for('superadmin_client_new') }}">New Client</a></div>
+      </header>
+
+      <section class="admin-content">
+        <table class="table">
+          <thead><tr><th>ID</th><th>Slug</th><th>Name</th><th>Created</th><th>Action</th></tr></thead>
+          <tbody>
+            {% for c in clients %}
+            <tr>
+              <td>{{ c.id }}</td>
+              <td>{{ c.slug }}</td>
+              <td>{{ c.name }}</td>
+              <td>{{ c.created_at.strftime('%Y-%m-%d') }}</td>
+              <td>
+                <a class="btn" href="{{ url_for('superadmin_client_edit', cid=c.id) }}">Edit</a>
+                <form method="post" action="{{ url_for('superadmin_client_delete', cid=c.id) }}" style="display:inline;">
                   <button class="btn-danger">Delete</button>
                 </form>
               </td>
