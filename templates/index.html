@@ -1,73 +1,63 @@
+<!-- templates/index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>AI Receptionist — Chat</title>
+  <title>AI Receptionist</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-<div class="crm-app">
-  <!-- Sidebar -->
-  <aside class="crm-sidebar">
-    <div class="brand">
-      <h2>AI Receptionist</h2>
-      <small>Virtual front-desk</small>
-    </div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <h2>AI Receptionist</h2>
+        <p>Virtual front-desk</p>
+      </div>
+      <nav>
+        <a class="active">Chat</a>
+        <a href="/admin/login">Client Admin</a>
+        <a href="/superadmin/login">Super Admin</a>
+      </nav>
+      <div class="embed-box">
+        <small>Embed code:</small>
+        <pre>&lt;script src="https://{{ request.host }}/static/widget.js" data-client="{{ client.slug if client else 'demo' }}"&gt;&lt;/script&gt;</pre>
+      </div>
+    </aside>
 
-    <nav class="nav">
-      <a href="/" class="nav-item active">Chat</a>
-      <a href="/admin/login" class="nav-item">Client Admin</a>
-      <a href="/superadmin/login" class="nav-item">Super Admin</a>
-    </nav>
-
-    <div class="widget-embed">
-      <p>Embed code:</p>
-      <code>&lt;script src="https://YOUR_DOMAIN/static/widget.js?client=demo"&gt;&lt;/script&gt;</code>
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <main class="crm-main">
-    <header class="topbar">
-      <div class="top-left">
+    <main class="main-area">
+      <header>
         <h3>Live Chat</h3>
-        <div class="sub">Ask about timings, location, contact — or book an appointment</div>
-      </div>
-      <div class="top-right">
-        <span class="badge">Demo</span>
-      </div>
-    </header>
+        <p>Ask about timings, location, contact — or book an appointment</p>
+      </header>
 
-    <section class="crm-body">
-      <div class="conversations">
-        <div id="chatWindow" class="chat-window">
-          <!-- messages inserted here -->
+      <section class="chat-area">
+        <div id="chatWindow" class="chat-window"></div>
+        <div class="input-row">
+          <input id="userInput" type="text" placeholder="Type your message..." />
+          <button id="sendBtn">Send</button>
         </div>
+      </section>
+    </main>
 
-        <form id="chatForm" class="input-area" onsubmit="return sendMessage();">
-          <input id="userInput" type="text" placeholder="Type your message..." autocomplete="off" required />
-          <button type="submit" class="btn-primary">Send</button>
-        </form>
+    <aside class="right-col">
+      <div class="card">
+        <h4>Quick actions</h4>
+        <p>Try booking an appointment:</p>
+        <pre>book appointment: 2025-12-10 10:30, Your Name, purpose</pre>
       </div>
 
-      <aside class="crm-sidepanel">
-        <div class="panel-card">
-          <h4>Quick actions</h4>
-          <p>Try booking an appointment:</p>
-          <code>book appointment: 2025-12-10 10:30, Your Name, purpose</code>
-        </div>
+      <div class="card">
+        <h4>Contact</h4>
+        <p>Phone: +91-9876543210<br/>Email: info@example.com</p>
+      </div>
+    </aside>
+  </div>
 
-        <div class="panel-card">
-          <h4>Contact</h4>
-          <p>Phone: +91-9876543210</p>
-          <p>Email: info@example.com</p>
-        </div>
-      </aside>
-    </section>
-  </main>
-</div>
-
-<script src="/static/chat.js"></script>
+  <script>
+    // expose client slug to chat.js if set
+    window.CLIENT_SLUG = "{{ client.slug if client else '' }}";
+  </script>
+  <script src="/static/chat.js"></script>
 </body>
 </html>
