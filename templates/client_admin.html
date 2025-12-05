@@ -1,9 +1,9 @@
+<!-- templates/client_admin.html -->
 <!doctype html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8" />
-  <title>{{ session.client_name }} — Client Admin</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Client Admin</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -11,32 +11,27 @@
     <aside class="admin-sidebar">
       <div class="brand">Client Admin — {{ session.client_name }}</div>
       <nav>
-        <a href="/admin" class="{% if active=='appointments' %}active{% endif %}">Appointments</a>
-        <a href="/admin/faqs" class="{% if active=='faqs' %}active{% endif %}">FAQs</a>
-        <a href="/admin/settings" class="{% if active=='settings' %}active{% endif %}">Settings</a>
-        <a href="/admin/logout">Logout</a>
+        <a href="{{ url_for('admin_dashboard') }}" class="{% if active=='appointments' %}active{% endif %}">Appointments</a>
+        <a href="{{ url_for('admin_faqs') }}" class="{% if active=='faqs' %}active{% endif %}">FAQs</a>
+        <a href="{{ url_for('admin_settings') }}" class="{% if active=='settings' %}active{% endif %}">Settings</a>
+        <a href="{{ url_for('admin_logout') }}">Logout</a>
       </nav>
     </aside>
 
     <main class="admin-main">
       <header class="admin-top">
         <h3>{{ session.client_name }} Dashboard</h3>
-        <div>
-          <a class="btn" href="/admin/export">Export CSV</a>
-        </div>
+        <div><a class="btn" href="{{ url_for('admin_export') }}">Export CSV</a></div>
       </header>
 
       <section class="admin-content">
         {% if section == 'appointments' %}
           <form method="get" class="search-form">
-            <input name="q" placeholder="Search name or purpose" value="{{ q }}">
+            <input name="q" placeholder="Search" value="{{ q }}">
             <button class="btn">Search</button>
           </form>
-
           <table class="table">
-            <thead>
-              <tr><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Purpose</th><th>Raw</th><th>Action</th></tr>
-            </thead>
+            <thead><tr><th>ID</th><th>Name</th><th>Date</th><th>Time</th><th>Purpose</th><th>Raw</th><th>Action</th></tr></thead>
             <tbody>
               {% for a in appts %}
               <tr>
@@ -45,9 +40,9 @@
                 <td>{{ a.date }}</td>
                 <td>{{ a.time }}</td>
                 <td>{{ a.purpose }}</td>
-                <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.raw_message }}</td>
+                <td>{{ a.raw_message }}</td>
                 <td>
-                  <form method="post" action="/admin/delete/{{ a.id }}" onsubmit="return confirm('Delete appointment?')">
+                  <form method="post" action="{{ url_for('admin_delete_appointment', appt_id=a.id) }}">
                     <button class="btn-danger">Delete</button>
                   </form>
                 </td>
@@ -58,58 +53,52 @@
 
         {% elif section == 'faqs' %}
           <div class="card">
-            <h4>FAQs</h4>
-            <p>Add a new FAQ (keywords separated by commas)</p>
-            <form method="post" action="/admin/faqs">
-              <input name="question" placeholder="Short user question (title)" required />
-              <textarea name="answer" placeholder="Answer text" rows="4" required></textarea>
-              <input name="keywords" placeholder="keywords, comma, separated" />
+            <h4>Add FAQ</h4>
+            <form method="post">
+              <input name="question" placeholder="Question" required />
+              <textarea name="answer" placeholder="Answer" required></textarea>
+              <input name="keywords" placeholder="comma-separated keywords" />
               <button class="btn-primary" type="submit">Add FAQ</button>
             </form>
           </div>
 
-          <div style="margin-top:12px;">
-            <table class="table">
-              <thead><tr><th>ID</th><th>Question</th><th>Keywords</th><th>Action</th></tr></thead>
-              <tbody>
-                {% for f in faqs %}
-                <tr>
-                  <td>{{ f.id }}</td>
-                  <td>{{ f.question }}</td>
-                  <td>{{ f.keywords }}</td>
-                  <td>
-                    <form method="post" action="/admin/faqs/delete/{{ f.id }}" onsubmit="return confirm('Delete FAQ?')">
-                      <button class="btn-danger">Delete</button>
-                    </form>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+          <table class="table">
+            <thead><tr><th>ID</th><th>Question</th><th>Keywords</th><th>Action</th></tr></thead>
+            <tbody>
+              {% for f in faqs %}
+              <tr>
+                <td>{{ f.id }}</td>
+                <td>{{ f.question }}</td>
+                <td>{{ f.keywords }}</td>
+                <td>
+                  <form method="post" action="{{ url_for('admin_faq_delete', faq_id=f.id) }}">
+                    <button class="btn-danger">Delete</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
 
         {% elif section == 'settings' %}
           <div class="card">
-            <h4>Branding & Admin</h4>
+            <h4>Settings</h4>
             {% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
-            <form method="post" action="/admin/settings">
+            <form method="post">
               <label>Business name</label>
               <input name="name" value="{{ client.name }}" required />
               <label>Logo URL</label>
               <input name="logo" value="{{ client.logo or '' }}" />
-              <label>Primary color (hex)</label>
+              <label>Primary color</label>
               <input name="color" value="{{ client.color or '#2563eb' }}" />
-              <hr/>
-              <h4>Admin password (leave blank to keep)</h4>
-              <input name="password" type="password" placeholder="New admin password" />
+              <label>Admin password (leave blank to keep)</label>
+              <input name="password" type="password" />
               <button class="btn-primary" type="submit">Save settings</button>
             </form>
           </div>
-
-          <div style="margin-top:12px;" class="card">
-            <h4>Embed code for this client</h4>
-            <p>Copy & paste to client's site:</p>
-            <code id="embedCode">&lt;script src="{{ base_url }}/static/widget.js?client={{ client.slug }}&color={{ client.color | urlencode }}&logo={{ client.logo | urlencode }}&async&gt;&lt;/script&gt;</code>
+          <div class="card">
+            <h4>Embed code</h4>
+            <code>&lt;script src="{{ base_url }}/static/widget.js" data-client="{{ client.slug }}"&gt;&lt;/script&gt;</code>
           </div>
         {% endif %}
       </section>
