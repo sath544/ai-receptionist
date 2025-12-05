@@ -1,26 +1,30 @@
+<!-- templates/client_form.html -->
 <!doctype html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8" />
-  <title>{{ "Create Client" if mode=="create" else "Edit Client" }}</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Client form</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
-<body class="simple-center">
-  <div class="card">
-    <h3>{{ "Create Client" if mode=="create" else "Edit Client" }}</h3>
+<body class="center-page">
+  <div class="card" style="width:540px">
+    <h3>{% if mode=='create' %}Create Client{% else %}Edit Client{% endif %}</h3>
     <form method="post">
-      <input name="slug" placeholder="Unique slug (example: salon123)" value="{{ client.slug if client else '' }}" required />
-      <input name="name" placeholder="Business name" value="{{ client.name if client else '' }}" required />
-      <input name="logo" placeholder="Logo URL" value="{{ client.logo if client else '' }}" />
-      <input name="color" placeholder="Color hex (#2563eb)" value="{{ client.color if client else '#2563eb' }}" required />
-      {% if mode=="create" %}
-      <hr/>
-      <h4>Admin account</h4>
-      <input name="username" placeholder="Admin email" required />
-      <input name="password" placeholder="Admin password" required />
+      <label>Slug (unique)</label>
+      <input name="slug" value="{{ client.slug if client else '' }}" required />
+      <label>Name</label>
+      <input name="name" value="{{ client.name if client else '' }}" required />
+      <label>Logo URL</label>
+      <input name="logo" value="{{ client.logo if client else '' }}" />
+      <label>Primary color</label>
+      <input name="color" value="{{ client.color if client else '#2563eb' }}" />
+      {% if mode == 'create' %}
+      <label>Admin username</label>
+      <input name="username" />
+      <label>Admin password</label>
+      <input name="password" type="password" />
       {% endif %}
-      <button class="btn-primary" type="submit">{{ "Update" if mode=="edit" else "Create" }}</button>
+      <button class="btn-primary" type="submit">{% if mode=='create' %}Create{% else %}Save{% endif %}</button>
     </form>
   </div>
 </body>
