@@ -1,62 +1,30 @@
-/* Professional CRM style */
-:root{
-  --bg:#f3f4f6; --white:#ffffff; --primary:#2563eb; --muted:#6b7280;
-  --danger:#ef4444; --radius:10px;
-  --card-shadow: 0 8px 30px rgba(15,23,42,0.06);
-}
+/* static/style.css - base styles */
+:root { --primary: #2563eb; --muted:#f3f4f6; --card:#ffffff; --text:#111827; }
 *{box-sizing:border-box}
-body{font-family:Inter,ui-sans-serif,system-ui,Arial; background:var(--bg); margin:0; color:#111827}
-.crm-app{display:flex; min-height:100vh}
-/* Sidebar */
-.crm-sidebar{width:260px;background:var(--white);padding:20px;border-right:1px solid #eef2f7}
-.brand h2{margin:0;font-size:18px;color:var(--primary)}
-.brand small{display:block;color:var(--muted);margin-top:6px}
-.nav{margin-top:20px;display:flex;flex-direction:column;gap:8px}
-.nav-item{padding:10px 12px;border-radius:8px;color:#111827;text-decoration:none}
-.nav-item.active{background:rgba(37,99,235,0.08); color:var(--primary)}
-.widget-embed{margin-top:24px;font-size:13px;color:var(--muted)}
-.widget-embed code{display:block;padding:8px;background:#f8fafc;border-radius:6px;margin-top:6px; font-size:12px}
-
-/* Main */
-.crm-main{flex:1;display:flex;flex-direction:column}
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:18px 24px;background:transparent;border-bottom:1px solid #eef2f7}
-.topbar h3{margin:0}
-.sub{color:var(--muted);font-size:13px;margin-top:4px}
-.badge{background:#eef2ff;color:var(--primary);padding:6px 10px;border-radius:999px;font-weight:600}
-
-/* Body layout */
-.crm-body{display:flex;gap:20px;padding:20px}
-.conversations{flex:1;display:flex;flex-direction:column;gap:12px}
-.chat-window{flex:1;background:#fff;border-radius:12px;padding:18px;box-shadow:var(--card-shadow);overflow-y:auto;min-height:420px}
-.message{display:inline-block;padding:10px 14px;border-radius:12px;margin-bottom:10px;max-width:78%}
-.message.user{background:var(--primary);color:#fff;margin-left:auto;border-bottom-right-radius:4px}
-.message.bot{background:#f3f4f6;color:#111;border-bottom-left-radius:4px}
-.input-area{display:flex;padding:10px;background:transparent;gap:8px}
-.input-area input{flex:1;padding:12px;border-radius:999px;border:1px solid #e6eef7}
-.btn-primary{background:var(--primary);color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer}
-.btn{background:#eff6ff;color:var(--primary);padding:8px 12px;border-radius:8px;text-decoration:none}
-.btn-danger{background:var(--danger);color:#fff;border:none;padding:8px 10px;border-radius:6px;cursor:pointer}
-
-/* Sidepanel */
-.crm-sidepanel{width:320px}
-.panel-card{background:#fff;padding:16px;border-radius:12px;box-shadow:var(--card-shadow);margin-bottom:12px}
-
-/* Admin */
-.admin-shell{display:flex;min-height:100vh}
-.admin-sidebar{width:220px;background:var(--white);padding:18px;border-right:1px solid #eef2f7}
-.admin-sidebar .brand{font-weight:700;margin-bottom:12px}
-.admin-sidebar nav a{display:block;padding:8px 10px;color:#111;text-decoration:none;border-radius:8px;margin-bottom:6px}
-.admin-sidebar nav a.active{background:rgba(37,99,235,0.08);color:var(--primary)}
-.admin-main{flex:1;padding:20px}
-.admin-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.card{background:#fff;padding:16px;border-radius:12px;box-shadow:var(--card-shadow)}
-.small{width:360px}
-.simple-center{display:flex;min-height:100vh;align-items:center;justify-content:center}
-.alert{background:#fff3ef;padding:8px;border-radius:8px;margin-bottom:8px;color:var(--danger)}
-.table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}
-.table th,.table td{padding:12px;border-bottom:1px solid #f3f6f9;text-align:left}
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.stat{padding:18px;text-align:center}
-.pill{padding:6px 10px;border-radius:999px;color:#fff}
-.search-form{display:flex;gap:8px;margin-bottom:12px}
-.search-form input{padding:8px;border:1px solid #e6eef7;border-radius:8px}
+body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--muted); margin:0; color:var(--text)}
+.app-shell{display:grid; grid-template-columns: 240px 1fr 320px; gap:24px; padding:28px; min-height:100vh}
+.sidebar{background:transparent}
+.brand h2{color:var(--primary); margin:0}
+nav a{display:block;padding:12px;border-radius:8px;color:#111827;text-decoration:none;margin-top:6px}
+nav a.active{background:#eef4ff;color:var(--primary)}
+.embed-box pre{background:#fff;padding:8px;border-radius:8px;font-size:12px;overflow:auto}
+.main-area header h3{margin:0 0 6px 0}
+.chat-area{background:#fff;border-radius:12px;padding:18px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); display:flex; flex-direction:column; height:560px}
+.chat-window{flex:1; overflow:auto; padding:8px}
+.input-row{display:flex; padding-top:12px; align-items:center}
+.input-row input{flex:1;padding:12px;border-radius:999px;border:2px solid #e6eaf7; outline:none}
+.input-row button{margin-left:8px;padding:10px 16px;border-radius:10px;border:none;background:var(--primary); color:#fff}
+.right-col .card{background:#fff;padding:16px;border-radius:12px; box-shadow: 0 8px 25px rgba(0,0,0,0.05); margin-bottom:16px}
+.card{background:#fff;padding:12px;border-radius:10px}
+.center-page{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card input, .card textarea{width:100%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #e6eaf7}
+.btn {background:#eef4ff;color:var(--primary); padding:6px 10px;border-radius:8px;text-decoration:none}
+.btn-primary {background:var(--primary); color:#fff; padding:10px 12px;border-radius:8px;border:none}
+.btn-danger {background:#ff4d4f;color:#fff;padding:6px 8px;border-radius:6px;border:none}
+.table{width:100%;border-collapse:collapse}
+.table th, .table td{padding:8px;border-bottom:1px solid #f3f4f6;text-align:left}
+.admin-shell{display:flex}
+.admin-sidebar{width:220px;padding:18px}
+.admin-main{flex:1;padding:18px}
+.admin-top{display:flex;justify-content:space-between;align-items:center}
+.alert{background:#fff3cd;padding:8px;border-radius:6px;margin:8px 0}
