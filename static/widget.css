@@ -1,0 +1,12 @@
+/* static/widget.css */
+#ai-widget { position:fixed; right:18px; bottom:18px; font-family:Arial, sans-serif; z-index:99999; }
+#ai-widget-bubble { background:#2563eb;color:#fff;padding:12px 14px;border-radius:999px; cursor:pointer; box-shadow:0 8px 20px rgba(0,0,0,0.15) }
+#ai-widget-panel { width:320px; height:420px; background:#fff; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column }
+#ai-widget-header { background:#f7f9fc;padding:10px 12px;display:flex;align-items:center; justify-content:space-between; font-weight:600 }
+#ai-widget-body { flex:1; padding:10px; overflow:auto; background:#fafafa }
+#ai-widget-input { display:flex;padding:10px; border-top:1px solid #eee }
+#ai-widget-input input { flex:1;padding:8px;border-radius:8px;border:1px solid #e6e9f0 }
+#ai-widget-input button { margin-left:8px;padding:8px 10px;border-radius:8px;border:none;background:#2563eb;color:#fff }
+.ai-msg { padding:8px 10px;border-radius:10px; margin:8px 0; max-width:80% }
+.ai-msg.bot { background:#fff; color:#111 }
+.ai-msg.user { background:#2563eb;color:#fff;margin-left:auto }
