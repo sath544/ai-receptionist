@@ -1,348 +1,335 @@
-# app.py
+# app.py (full)
 import os
-import io
-import csv
-import smtplib
-import stripe
-from datetime import datetime, date
-
-from flask import (
-    Flask, render_template, request, jsonify,
-    session, redirect, url_for, send_file
-)
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, session, flash, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import func, or_
+from io import StringIO
+import csv
+from datetime import datetime
+from urllib.parse import urlencode
+import json
 
-from models import db, SuperAdmin, Client, AdminUser, Appointment
+# local models
+from models import db, Client, Appointment, FAQ
 
-# -------------------------
-# APP SETUP
-# -------------------------
-app = Flask(__name__, template_folder="templates", static_folder="static")
-app.secret_key = os.environ.get("FLASK_SECRET", "super-secret-key")
+app = Flask(__name__, template_folder='templates', static_folder='static')
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///data.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Configuration
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_URL = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(BASE_DIR, 'data.db')}"
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.secret_key = os.environ.get("FLASK_SECRET", "please-change-this-secret")
+
 db.init_app(app)
 
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
-
-# -------------------------
-# EMAIL SENDER
-# -------------------------
-def send_email(to, subject, body):
-    smtp_user = os.environ.get("SMTP_USER")
-    smtp_pass = os.environ.get("SMTP_PASS")
-    smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
-    smtp_port = int(os.environ.get("SMTP_PORT", 587))
-
-    if not smtp_user:
-        print("⚠ Email not configured. Skipping.")
-        return
-
-    msg = f"Subject: {subject}\n\n{body}"
-
-    try:
-        s = smtplib.SMTP(smtp_server, smtp_port)
-        s.starttls()
-        s.login(smtp_user, smtp_pass)
-        s.sendmail(smtp_user, to, msg)
-        s.quit()
-    except Exception as e:
-        print("Email error:", e)
-
-# -------------------------
-# INITIAL DATABASE SETUP
-# -------------------------
+# Ensure DB exists (create tables)
 with app.app_context():
     db.create_all()
 
-    # Default Super Admin
-    if not SuperAdmin.query.first():
-        sa = SuperAdmin(
-            username="owner",
-            password=generate_password_hash("owner123")
-        )
-        db.session.add(sa)
-        db.session.commit()
+# --------------- Public widget & chat logic ---------------
+def load_client_by_slug(slug):
+    if not slug:
+        return None
+    return Client.query.filter_by(slug=slug).first()
 
-    # Create demo client if none exist
-    if not Client.query.filter_by(slug="demo").first():
-        demo = Client(slug="demo", name="Demo Business", color="#2563eb")
-        db.session.add(demo)
-        db.session.commit()
+def match_faq_for_client(message, client):
+    msg = message.lower()
+    if not client:
+        # fallback to global faqs (client_id is None)
+        faqs = FAQ.query.filter_by(client_id=None).all()
+    else:
+        faqs = FAQ.query.filter((FAQ.client_id == client.id) | (FAQ.client_id == None)).all()
+    for f in faqs:
+        ks = (f.keywords or "").lower()
+        for kw in [k.strip() for k in ks.split(",") if k.strip()]:
+            if kw and kw in msg:
+                return f.answer
+        # also check question substring
+        if f.question.lower() in msg:
+            return f.answer
+    return None
 
-        admin = AdminUser(
-            username="admin@demo",
-            password=generate_password_hash("demo123"),
-            client_id=demo.id
-        )
-        db.session.add(admin)
-        db.session.commit()
+def parse_appointment(message):
+    if "book appointment" not in message.lower():
+        return None
+    try:
+        parts = message.split(":", 1)
+        details = parts[1].strip()
+        segments = [s.strip() for s in details.split(",")]
+        if len(segments) < 3:
+            return None
+        dt_str = segments[0]      # "2025-12-03 16:00"
+        name = segments[1]
+        purpose = ", ".join(segments[2:])
+        dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
+        return {
+            "name": name,
+            "date": dt.date().isoformat(),
+            "time": dt.strftime("%H:%M"),
+            "purpose": purpose
+        }
+    except Exception as e:
+        print("parse_appointment error:", e)
+        return None
 
-# -------------------------
-# SUPER ADMIN AUTH
-# -------------------------
-from functools import wraps
+def save_appointment_for_client(appt, raw_message, client):
+    a = Appointment(
+        client_id = client.id if client else None,
+        name = appt['name'],
+        date = appt['date'],
+        time = appt['time'],
+        purpose = appt['purpose'],
+        raw_message = raw_message
+    )
+    db.session.add(a)
+    db.session.commit()
 
-def superadmin_required(f):
+@app.route("/")
+def index():
+    # If ?client=slug present it will be used by the client widget
+    client_slug = request.args.get("client")
+    client = load_client_by_slug(client_slug) if client_slug else None
+    return render_template("index.html", client=client)
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json(silent=True)
+    if data is None:
+        return jsonify({"reply": "Invalid request - missing JSON."}), 400
+    user_message = data.get("message", "").strip()
+    client_slug = request.args.get("client") or data.get("client")
+    client = load_client_by_slug(client_slug) if client_slug else None
+
+    if not user_message:
+        return jsonify({"reply": "Please type something 😊"})
+
+    # simple intents
+    if any(w in user_message.lower() for w in ["hi", "hello", "hey"]):
+        return jsonify({"reply": "Hello! 👋 I'm your AI Receptionist.\nAsk me anything or book an appointment!"})
+
+    if any(w in user_message.lower() for w in ["thank", "thanks"]):
+        return jsonify({"reply": "You're welcome! 😊"})
+
+    appt = parse_appointment(user_message)
+    if appt:
+        save_appointment_for_client(appt, user_message, client)
+        return jsonify({"reply": f"Appointment booked for {appt['name']} on {appt['date']} at {appt['time']}!"})
+
+    # FAQ match
+    faq_ans = match_faq_for_client(user_message, client)
+    if faq_ans:
+        return jsonify({"reply": faq_ans})
+
+    # fallback
+    return jsonify({"reply": "Sorry, I didn't understand that. Try asking about timings, location, contact, or: `book appointment: 2025-12-03 16:00, Your Name, purpose`"})
+
+# --------------- Admin / client login + client admin pages ---------------
+def require_client_login(f):
+    from functools import wraps
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if "superadmin_id" not in session:
+        if not session.get("client_id"):
+            return redirect(url_for("admin_login"))
+        return f(*args, **kwargs)
+    return wrapper
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if session.get("client_id"):
+        return redirect(url_for("admin_dashboard"))
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username","").strip()
+        password = request.form.get("password","").strip()
+        client = Client.query.filter_by(admin_username=username).first()
+        if client and check_password_hash(client.admin_password_hash, password):
+            session["client_id"] = client.id
+            session["client_name"] = client.name
+            return redirect(url_for("admin_dashboard"))
+        error = "Invalid username or password"
+    return render_template("admin_login.html", error=error)
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("client_id", None)
+    session.pop("client_name", None)
+    return redirect(url_for("admin_login"))
+
+@app.route("/admin")
+@require_client_login
+def admin_dashboard():
+    client_id = session["client_id"]
+    q = request.args.get("q","").strip()
+    if q:
+        appts = Appointment.query.filter(Appointment.client_id==client_id).filter(
+            (Appointment.name.ilike(f"%{q}%")) | (Appointment.purpose.ilike(f"%{q}%"))
+        ).order_by(Appointment.created_at.desc()).all()
+    else:
+        appts = Appointment.query.filter_by(client_id=client_id).order_by(Appointment.created_at.desc()).all()
+    return render_template("client_admin.html", section="appointments", appts=appts, q=q, active='appointments')
+
+@app.route("/admin/delete/<int:appt_id>", methods=["POST"])
+@require_client_login
+def admin_delete_appointment(appt_id):
+    client_id = session["client_id"]
+    appt = Appointment.query.filter_by(id=appt_id, client_id=client_id).first()
+    if appt:
+        db.session.delete(appt)
+        db.session.commit()
+        flash("Appointment deleted.")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/faqs", methods=["GET","POST"])
+@require_client_login
+def admin_faqs():
+    client_id = session["client_id"]
+    if request.method == "POST":
+        question = request.form.get("question","").strip()
+        answer = request.form.get("answer","").strip()
+        keywords = request.form.get("keywords","").strip()
+        if question and answer:
+            f = FAQ(client_id=client_id, question=question, answer=answer, keywords=keywords)
+            db.session.add(f)
+            db.session.commit()
+            flash("FAQ added.")
+            return redirect(url_for("admin_faqs"))
+    faqs = FAQ.query.filter_by(client_id=client_id).order_by(FAQ.id.desc()).all()
+    return render_template("client_admin.html", section="faqs", faqs=faqs, active='faqs')
+
+@app.route("/admin/faqs/delete/<int:faq_id>", methods=["POST"])
+@require_client_login
+def admin_faq_delete(faq_id):
+    client_id = session["client_id"]
+    f = FAQ.query.filter_by(id=faq_id, client_id=client_id).first()
+    if f:
+        db.session.delete(f)
+        db.session.commit()
+        flash("FAQ removed.")
+    return redirect(url_for("admin_faqs"))
+
+@app.route("/admin/settings", methods=["GET","POST"])
+@require_client_login
+def admin_settings():
+    client_id = session["client_id"]
+    client = Client.query.get_or_404(client_id)
+    msg = None
+    if request.method == "POST":
+        name = request.form.get("name","").strip()
+        logo = request.form.get("logo","").strip()
+        color = request.form.get("color","").strip() or "#2563eb"
+        password = request.form.get("password","").strip()
+        client.name = name
+        client.logo = logo
+        client.color = color
+        if password:
+            client.admin_password_hash = generate_password_hash(password)
+        db.session.add(client)
+        db.session.commit()
+        msg = "Settings saved."
+    base_url = request.host_url.rstrip("/")
+    return render_template("client_admin.html", section="settings", client=client, msg=msg, base_url=base_url, active='settings')
+
+@app.route("/admin/export")
+@require_client_login
+def admin_export():
+    client_id = session["client_id"]
+    appts = Appointment.query.filter_by(client_id=client_id).order_by(Appointment.created_at.desc()).all()
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(["id","created_at","name","date","time","purpose","raw_message"])
+    for a in appts:
+        writer.writerow([a.id, a.created_at.isoformat() if a.created_at else "", a.name, a.date, a.time, a.purpose, a.raw_message])
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=appointments_client_{client_id}.csv"
+    output.headers["Content-Type"] = "text/csv"
+    return output
+
+# --------------- Superadmin (manage clients) ---------------
+def require_superadmin_login(f):
+    from functools import wraps
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("superadmin"):
             return redirect(url_for("superadmin_login"))
         return f(*args, **kwargs)
     return wrapper
 
 @app.route("/superadmin/login", methods=["GET","POST"])
 def superadmin_login():
+    if session.get("superadmin"):
+        return redirect(url_for("superadmin_dashboard"))
+    error = None
     if request.method == "POST":
-        user = SuperAdmin.query.filter_by(username=request.form["username"]).first()
-        if user and check_password_hash(user.password, request.form["password"]):
-            session["superadmin_id"] = user.id
+        username = request.form.get("username","").strip()
+        password = request.form.get("password","").strip()
+        if username == os.environ.get("SUPERADMIN_USER","owner") and password == os.environ.get("SUPERADMIN_PASS","owner123"):
+            session["superadmin"] = True
             return redirect(url_for("superadmin_dashboard"))
-        return render_template("superadmin_login.html", error="Invalid credentials")
-    return render_template("superadmin_login.html")
+        error = "Invalid credentials"
+    return render_template("superadmin_login.html", error=error)
 
 @app.route("/superadmin/logout")
 def superadmin_logout():
-    session.pop("superadmin_id", None)
+    session.pop("superadmin", None)
     return redirect(url_for("superadmin_login"))
 
-# -------------------------
-# SUPER ADMIN DASHBOARD
-# -------------------------
 @app.route("/superadmin")
-@superadmin_required
+@require_superadmin_login
 def superadmin_dashboard():
-    clients = Client.query.all()
+    clients = Client.query.order_by(Client.created_at.desc()).all()
     return render_template("superadmin_dashboard.html", clients=clients)
 
 @app.route("/superadmin/client/new", methods=["GET","POST"])
-@superadmin_required
-def create_client():
+@require_superadmin_login
+def superadmin_client_new():
     if request.method == "POST":
-        slug = request.form["slug"].strip()
-        name = request.form["name"].strip()
-        logo = request.form["logo"].strip()
-        color = request.form["color"]
-
-        username = request.form["username"].strip()
-        password = request.form["password"].strip()
-
-        c = Client(slug=slug, name=name, logo=logo, color=color)
-        db.session.add(c)
-        db.session.commit()
-
-        admin = AdminUser(
-            username=username,
-            password=generate_password_hash(password),
-            client_id=c.id
-        )
-        db.session.add(admin)
-        db.session.commit()
-
-        return redirect(url_for("superadmin_dashboard"))
-
-    return render_template("client_form.html", mode="create")
+        slug = request.form.get("slug","").strip()
+        name = request.form.get("name","").strip()
+        logo = request.form.get("logo","").strip()
+        color = request.form.get("color","").strip() or "#2563eb"
+        username = request.form.get("username","").strip()
+        password = request.form.get("password","").strip()
+        if slug and name and username and password:
+            hashed = generate_password_hash(password)
+            c = Client(slug=slug, name=name, logo=logo, color=color, admin_username=username, admin_password_hash=hashed)
+            db.session.add(c)
+            db.session.commit()
+            flash("Client created.")
+            return redirect(url_for("superadmin_dashboard"))
+        flash("Please fill required fields")
+    return render_template("client_form.html", mode="create", client=None)
 
 @app.route("/superadmin/client/<int:cid>/edit", methods=["GET","POST"])
-@superadmin_required
-def edit_client(cid):
-    c = Client.query.get_or_404(cid)
-
+@require_superadmin_login
+def superadmin_client_edit(cid):
+    client = Client.query.get_or_404(cid)
     if request.method == "POST":
-        c.slug = request.form["slug"]
-        c.name = request.form["name"]
-        c.logo = request.form["logo"]
-        c.color = request.form["color"]
+        client.slug = request.form.get("slug", client.slug).strip()
+        client.name = request.form.get("name", client.name).strip()
+        client.logo = request.form.get("logo", client.logo).strip()
+        client.color = request.form.get("color", client.color).strip() or "#2563eb"
+        db.session.add(client)
         db.session.commit()
+        flash("Client updated.")
         return redirect(url_for("superadmin_dashboard"))
-
-    return render_template("client_form.html", mode="edit", client=c)
+    return render_template("client_form.html", mode="edit", client=client)
 
 @app.route("/superadmin/client/<int:cid>/delete", methods=["POST"])
-@superadmin_required
-def delete_client(cid):
-    Appointment.query.filter_by(client_id=cid).delete()
-    AdminUser.query.filter_by(client_id=cid).delete()
-    Client.query.filter_by(id=cid).delete()
+@require_superadmin_login
+def superadmin_client_delete(cid):
+    client = Client.query.get_or_404(cid)
+    # optional: cascade delete faqs & appointments
+    Appointment.query.filter_by(client_id=client.id).delete()
+    FAQ.query.filter_by(client_id=client.id).delete()
+    db.session.delete(client)
     db.session.commit()
+    flash("Client deleted.")
     return redirect(url_for("superadmin_dashboard"))
 
-# -------------------------
-# SUPER ADMIN ANALYTICS
-# -------------------------
-@app.route("/superadmin/analytics")
-@superadmin_required
-def superadmin_analytics():
-    total_clients = Client.query.count()
-    total_appointments = Appointment.query.count()
+# --------------- widget file endpoints ---------------
+# serve a minimal widget JS from static/widget.js (we'll provide file) - nothing special here
+# But we also support direct widget query ?client=slug on index which is already handled
 
-    today = date.today()
-    today_count = Appointment.query.filter(
-        Appointment.created_at >= datetime(today.year, today.month, today.day)
-    ).count()
-
-    month_count = Appointment.query.filter(
-        Appointment.created_at >= datetime(today.year, today.month, 1)
-    ).count()
-
-    top_clients = db.session.query(
-        Client.name, func.count(Appointment.id)
-    ).join(Appointment).group_by(Client.id).limit(5).all()
-
-    trend = db.session.query(
-        func.date(Appointment.created_at),
-        func.count(Appointment.id)
-    ).group_by(func.date(Appointment.created_at)).all()
-
-    labels = [str(t[0]) for t in trend]
-    values = [t[1] for t in trend]
-
-    return render_template(
-        "superadmin_analytics.html",
-        total_clients=total_clients,
-        total_appointments=total_appointments,
-        today_count=today_count,
-        month_count=month_count,
-        top_clients=top_clients,
-        labels=labels,
-        values=values
-    )
-
-# -------------------------
-# CLIENT ADMIN AUTH
-# -------------------------
-def admin_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if "admin_id" not in session:
-            return redirect(url_for("admin_login"))
-        return f(*args, **kwargs)
-    return wrapper
-
-@app.route("/admin/login", methods=["GET","POST"])
-def admin_login():
-    if request.method == "POST":
-        user = AdminUser.query.filter_by(username=request.form["username"]).first()
-        if user and check_password_hash(user.password, request.form["password"]):
-            session["admin_id"] = user.id
-            session["client_id"] = user.client_id
-            session["client_slug"] = user.client.slug
-            session["client_name"] = user.client.name
-            return redirect(url_for("admin_dashboard"))
-        return render_template("admin_login.html", error="Invalid")
-    return render_template("admin_login.html")
-
-@app.route("/admin/logout")
-def admin_logout():
-    session.clear()
-    return redirect(url_for("admin_login"))
-
-# -------------------------
-# CLIENT ADMIN DASHBOARD
-# -------------------------
-@app.route("/admin")
-@admin_required
-def admin_dashboard():
-    cid = session["client_id"]
-
-    q = request.args.get("q", "").strip()
-
-    query = Appointment.query.filter_by(client_id=cid)
-
-    if q:
-        like = f"%{q}%"
-        query = query.filter(
-            or_(
-                Appointment.name.ilike(like),
-                Appointment.purpose.ilike(like)
-            )
-        )
-
-    appts = query.order_by(Appointment.created_at.desc()).all()
-
-    return render_template(
-        "admin_dashboard.html",
-        appts=appts,
-        q=q
-    )
-
-@app.route("/admin/delete/<int:aid>", methods=["POST"])
-@admin_required
-def admin_delete(aid):
-    Appointment.query.filter_by(id=aid).delete()
-    db.session.commit()
-    return redirect(url_for("admin_dashboard"))
-
-@app.route("/admin/export")
-@admin_required
-def admin_export():
-    cid = session["client_id"]
-    appts = Appointment.query.filter_by(client_id=cid).all()
-
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(["Name", "Date", "Time", "Purpose"])
-    for a in appts:
-        w.writerow([a.name, a.date, a.time, a.purpose])
-
-    return send_file(
-        io.BytesIO(buf.getvalue().encode()),
-        as_attachment=True,
-        download_name="appointments.csv"
-    )
-
-# -------------------------
-# PUBLIC CHAT API
-# -------------------------
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-@app.route("/chat", methods=["POST"])
-def chat():
-    msg = request.json.get("message", "")
-
-    # appointment format:
-    # book appointment: 2025-12-10 10:30, John Doe, haircut
-    if "book appointment" in msg.lower():
-        try:
-            _, rest = msg.split(":", 1)
-            parts = [p.strip() for p in rest.split(",")]
-
-            dt = datetime.strptime(parts[0], "%Y-%m-%d %H:%M")
-            name = parts[1]
-            purpose = ", ".join(parts[2:])
-
-            client = Client.query.filter_by(slug="demo").first()
-
-            appt = Appointment(
-                client_id=client.id,
-                name=name,
-                date=dt.date().isoformat(),
-                time=dt.strftime("%H:%M"),
-                purpose=purpose,
-                raw_message=msg
-            )
-            db.session.add(appt)
-            db.session.commit()
-
-            # notify admin
-            admin = AdminUser.query.filter_by(client_id=client.id).first()
-            send_email(
-                admin.username,
-                "New Appointment",
-                f"Name: {name}\nDate: {appt.date}\nTime: {appt.time}\nPurpose: {purpose}"
-            )
-
-            return jsonify({"reply": f"Appointment booked for {name} on {appt.date} at {appt.time}!"})
-
-        except Exception as e:
-            print("Parse error:", e)
-
-    return jsonify({"reply": "Hello! How can I help you today?"})
-
-
+# --------------- run ---------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
